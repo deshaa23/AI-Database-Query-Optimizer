@@ -166,6 +166,22 @@ The backend connects using the PostgreSQL values in `.env` and can be started wi
 uvicorn app.main:app --app-dir backend --reload
 ```
 
+## REST API
+
+Milestone 9 exposes the existing analysis engine through `POST /api/v1/analyze`:
+
+```json
+{
+	"query": "SELECT id, created_at FROM orders WHERE user_id = 4242",
+	"include_ai": true,
+	"include_benchmark": false
+}
+```
+
+The endpoint returns the execution plan, observations, deterministic recommendations, optional grounded AI analysis, and an optional benchmark result. AI analysis is optional and remains behind the configured provider abstraction. Benchmarking is opt-in and uses actual PostgreSQL measurements through the controlled benchmark service. Only one SELECT statement is accepted; arbitrary SQL, credentials, and LLM-generated SQL are never executed. AI output remains grounded against deterministic recommendations.
+
+Interactive API documentation is available at <http://127.0.0.1:8000/docs> when the application is running.
+
 ## CI/CD
 
 GitHub Actions runs the `CI` workflow on pushes to `main` and pull requests targeting `main`. It installs the project from `pyproject.toml`, checks patch whitespace, and runs the normal unit and optimizer test suite without integration mode. A separate job starts PostgreSQL 16 as a service container, reuses the existing database initialization and fixtures, and runs the full PostgreSQL integration suite with `RUN_INTEGRATION_TESTS=1`.
