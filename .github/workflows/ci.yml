@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Unit tests and repository checks
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install project and test dependencies
+        run: python -m pip install -e ".[test]"
+
+      - name: Check patch whitespace
+        run: git diff --check HEAD^ HEAD
+
+      - name: Run unit tests
+        run: python -m pytest -q
+
+  integration:
+    name: PostgreSQL integration tests
+    runs-on: ubuntu-24.04
+    env:
+      POSTGRES_DB: query_optimizer
+      POSTGRES_USER: query_optimizer_ci
+      POSTGRES_PASSWORD: query_optimizer_ci_password
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: query_optimizer
+          POSTGRES_USER: query_optimizer_ci
+          POSTGRES_PASSWORD: query_optimizer_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U query_optimizer_ci -d query_optimizer"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+          --health-start-period 10s
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install project and test dependencies
+        run: python -m pip install -e ".[test]"
+
+      - name: Check patch whitespace
+        run: git diff --check HEAD^ HEAD
+
+      - name: Run PostgreSQL integration tests
+        env:
+          RUN_INTEGRATION_TESTS: "1"
+        run: python -m pytest -q

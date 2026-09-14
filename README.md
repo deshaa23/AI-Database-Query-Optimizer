@@ -1,5 +1,7 @@
 # AI Database Query Optimizer
 
+[![CI](https://github.com/deshaa23/AI-Database-Query-Optimizer/actions/workflows/ci.yml/badge.svg)](https://github.com/deshaa23/AI-Database-Query-Optimizer/actions/workflows/ci.yml)
+
 AI Database Query Optimizer is a portfolio project for analyzing SQL queries and PostgreSQL execution plans, recommending performance improvements, and validating recommendations through measured benchmarks.
 
 ## Current functionality
@@ -163,3 +165,9 @@ The backend connects using the PostgreSQL values in `.env` and can be started wi
 ```powershell
 uvicorn app.main:app --app-dir backend --reload
 ```
+
+## CI/CD
+
+GitHub Actions runs the `CI` workflow on pushes to `main` and pull requests targeting `main`. It installs the project from `pyproject.toml`, checks patch whitespace, and runs the normal unit and optimizer test suite without integration mode. A separate job starts PostgreSQL 16 as a service container, reuses the existing database initialization and fixtures, and runs the full PostgreSQL integration suite with `RUN_INTEGRATION_TESTS=1`.
+
+The workflow fails when tests or repository checks fail. This milestone performs CI validation only; the repository does not yet contain a Dockerfile, so Docker image validation will be added after application Dockerization. No deployment, registry publishing, or production credentials are used.
