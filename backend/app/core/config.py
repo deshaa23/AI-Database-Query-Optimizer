@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     app_environment: str = "development"
     app_host: str = "127.0.0.1"
     app_port: int = 8000
+    frontend_origin: str = "http://localhost:5173"
     postgres_db: str = "query_optimizer"
     postgres_user: str = "query_optimizer"
     postgres_password: str = ""

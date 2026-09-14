@@ -182,6 +182,26 @@ The endpoint returns the execution plan, observations, deterministic recommendat
 
 Interactive API documentation is available at <http://127.0.0.1:8000/docs> when the application is running.
 
+## Frontend
+
+Milestone 10 adds a React + TypeScript + Vite dashboard in `frontend/`. To use it locally:
+
+1. Start PostgreSQL with `docker compose up -d postgres`.
+2. Start FastAPI with `uvicorn app.main:app --app-dir backend --reload`.
+3. Start the dashboard:
+
+```powershell
+Set-Location frontend
+npm install
+npm run dev
+```
+
+4. Open <http://localhost:5173>.
+5. Enter a PostgreSQL `SELECT` query and choose whether to include AI reasoning or the opt-in benchmark.
+6. Select **Analyze query** to inspect the plan, observations, recommendations, and measured results.
+
+The browser API URL defaults to `http://localhost:8000` and can be changed with `frontend/.env` using `VITE_API_BASE_URL`. Vite variables are client-visible; never put API keys, PostgreSQL credentials, or backend secrets in them. FastAPI permits the configured local frontend origin through `FRONTEND_ORIGIN`. Interactive backend documentation remains available at `/docs`.
+
 ## CI/CD
 
 GitHub Actions runs the `CI` workflow on pushes to `main` and pull requests targeting `main`. It installs the project from `pyproject.toml`, checks patch whitespace, and runs the normal unit and optimizer test suite without integration mode. A separate job starts PostgreSQL 16 as a service container, reuses the existing database initialization and fixtures, and runs the full PostgreSQL integration suite with `RUN_INTEGRATION_TESTS=1`.
