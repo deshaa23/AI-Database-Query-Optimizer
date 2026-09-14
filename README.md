@@ -139,6 +139,14 @@ To stop and remove the container while retaining the named volume:
 docker compose down
 ```
 
+Start the PostgreSQL and FastAPI containers together:
+
+```powershell
+docker compose up --build
+```
+
+The backend is available at <http://127.0.0.1:8000> and its health endpoint is <http://127.0.0.1:8000/api/v1/health>. The Compose backend uses the PostgreSQL service name `postgres`; local application runs can continue using the values in `.env`.
+
 ## Run the application
 
 ```powershell
