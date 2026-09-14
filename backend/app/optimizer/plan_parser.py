@@ -42,6 +42,7 @@ def parse_plan(raw_node: Mapping[str, Any]) -> PlanNode:
         actual_loops=raw_node.get("Actual Loops"),
         index_name=raw_node.get("Index Name"),
         filter=raw_node.get("Filter"),
+        sort_keys=raw_node.get("Sort Key", []),
         buffers=_parse_buffers(raw_node.get("Buffers")),
         plans=[parse_plan(child) for child in raw_node.get("Plans", [])],
     )

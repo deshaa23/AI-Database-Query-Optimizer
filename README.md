@@ -31,6 +31,12 @@ print(result.plan.node_type, result.execution_time_ms)
 
 The analyzer currently reports basic scans, sorts, row-estimate discrepancies, and expensive nodes. It does not create indexes, rewrite SQL, or use AI.
 
+## Deterministic optimization recommendations
+
+Milestone 5 applies deterministic rules to the `ExplainResult` and its recursive `PlanNode` tree. Recommendations are based on measured execution-plan evidence, such as a filtered sequential scan, a costly scan, or an explicit sort. An observation describes what PostgreSQL did; a recommendation identifies a possible action only when the plan provides enough evidence.
+
+Suggested index statements are output for review only. QueryForge never executes `CREATE INDEX` or any other optimization SQL automatically, preserving a clean before-optimization baseline for later validation.
+
 ## Requirements
 
 - Python 3.11 or newer

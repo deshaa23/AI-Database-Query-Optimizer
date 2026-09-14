@@ -36,6 +36,7 @@ class PlanNode(BaseModel):
     actual_loops: float | None = None
     index_name: str | None = None
     filter: str | None = None
+    sort_keys: list[str] = Field(default_factory=list)
     buffers: BufferInfo | None = None
     plans: list["PlanNode"] = Field(default_factory=list)
 
@@ -65,3 +66,18 @@ class ExplainResult(BaseModel):
     planning_time_ms: float | None = None
     execution_time_ms: float | None = None
     observations: list[PlanObservation] = Field(default_factory=list)
+
+
+class OptimizationRecommendation(BaseModel):
+    """A deterministic optimization suggestion grounded in plan evidence."""
+
+    type: Literal["MISSING_INDEX_CANDIDATE", "PERFORMANCE_BOTTLENECK"]
+    severity: Literal["low", "medium", "high"]
+    title: str
+    description: str
+    rationale: str
+    evidence: list[str] = Field(default_factory=list)
+    affected_table: str | None = None
+    affected_columns: list[str] = Field(default_factory=list)
+    suggested_sql: str | None = None
+    confidence: float = Field(ge=0.0, le=1.0)
