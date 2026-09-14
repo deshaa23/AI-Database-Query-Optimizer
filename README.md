@@ -14,6 +14,23 @@ Milestone 2 provides a small FastAPI backend foundation with:
 
 SQL parsing, optimization recommendations, benchmarking, AI components, and the frontend will be added in later milestones.
 
+## Execution-plan analysis
+
+Milestone 4 provides a SELECT-only execution-plan analyzer through `ExplainService.explain(query)`. It runs PostgreSQL `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`, so PostgreSQL executes the query and reports actual timing and buffer activity without changing data. JSON output gives QueryForge a stable, recursive representation of plan nodes that can later feed the optimization engine for observations and recommendations.
+
+For example, after initializing the benchmark database:
+
+```python
+from app.optimizer.explain import ExplainService
+
+result = ExplainService().explain(
+	"SELECT id, created_at FROM orders WHERE user_id = 4242"
+)
+print(result.plan.node_type, result.execution_time_ms)
+```
+
+The analyzer currently reports basic scans, sorts, row-estimate discrepancies, and expensive nodes. It does not create indexes, rewrite SQL, or use AI.
+
 ## Requirements
 
 - Python 3.11 or newer
