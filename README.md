@@ -63,6 +63,31 @@ OPENAI_API_KEY=<your-local-key>
 
 Unit tests use `MockLLMProvider`, so they do not require an API key or make network calls. The live provider is available through `OpenAIProvider` when the configuration is present.
 
+## Performance Benchmarking
+
+Milestone 7 measures a deterministic candidate with the same SELECT query before and after a controlled temporary index:
+
+```text
+SQL query
+	-> baseline EXPLAIN ANALYZE
+	-> deterministic optimization candidate
+	-> controlled candidate index
+	-> ANALYZE
+	-> after EXPLAIN ANALYZE
+	-> median comparison
+	-> cleanup
+```
+
+Performance numbers come from PostgreSQL using `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`. Each phase records individual timings plus mean and median values; median execution time is the primary comparison metric. The improvement percentage is calculated only from valid measured medians, and classifications use the configurable minimum threshold. Candidate indexes are derived only from validated deterministic recommendations, are temporary to the benchmark, and pre-existing indexes are preserved. Cleanup is attempted even when the after phase fails. LLM-generated SQL is never passed directly to this service, and a recommendation is not a guarantee that performance will improve.
+
+Benchmark settings are configured through `BENCHMARK_TIMEOUT_MS`, `BENCHMARK_REPETITIONS`, `BENCHMARK_WARMUP_RUNS`, and `BENCHMARK_MIN_IMPROVEMENT_PERCENT` in the environment template. Example output should be interpreted as measured placeholders:
+
+```text
+Baseline median: X ms
+After median: Y ms
+Measured improvement: Z%
+```
+
 ## Requirements
 
 - Python 3.11 or newer

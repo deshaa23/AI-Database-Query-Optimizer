@@ -34,7 +34,7 @@ class ExplainService:
     def __init__(self, engine: Engine | None = None) -> None:
         self._engine = engine or get_engine()
 
-    def explain(self, query: str) -> ExplainResult:
+    def explain(self, query: str, statement_timeout_ms: int | None = None) -> ExplainResult:
         """Return a parsed, analyzed execution plan without modifying data."""
 
         safe_query = validate_select_query(query)
@@ -42,6 +42,15 @@ class ExplainService:
             f"EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) {safe_query}"
         )
         with self._engine.connect() as connection:
+            if statement_timeout_ms is not None:
+                if statement_timeout_ms <= 0:
+                    raise ValueError("Statement timeout must be positive.")
+                connection.execute(
+                    text(
+                        "SELECT set_config('statement_timeout', CAST(:timeout_ms AS text), false)"
+                    ),
+                    {"timeout_ms": statement_timeout_ms},
+                )
             raw_plan: Any = connection.execute(explain_query).scalar_one()
 
         result = parse_explain_json(raw_plan)
