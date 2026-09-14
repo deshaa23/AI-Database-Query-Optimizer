@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     postgres_password: str = ""
     postgres_host: str = "127.0.0.1"
     postgres_port: int = 5432
+    ai_provider: str = ""
+    ai_model: str = ""
+    openai_api_key: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

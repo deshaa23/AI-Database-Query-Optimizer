@@ -37,6 +37,32 @@ Milestone 5 applies deterministic rules to the `ExplainResult` and its recursive
 
 Suggested index statements are output for review only. QueryForge never executes `CREATE INDEX` or any other optimization SQL automatically, preserving a clean before-optimization baseline for later validation.
 
+## AI-assisted optimization reasoning
+
+Milestone 6 places AI after deterministic database analysis:
+
+```text
+Execution-plan evidence
+	↓
+Deterministic recommendation
+	↓
+AI explanation/ranking
+	↓
+Human validation
+```
+
+The AI receives the original query, measured planning and execution times, a bounded plan summary, deterministic observations, and deterministic recommendations. It may explain candidates, rank them, discuss tradeoffs, and suggest validation steps, but it cannot invent tables, columns, indexes, timings, or executable SQL. Any suggested SQL must exactly match SQL already produced by the deterministic rule engine. This grounding reduces hallucinations, while human review and before/after `EXPLAIN ANALYZE` remain required. QueryForge never automatically executes AI-generated SQL.
+
+Configure the optional OpenAI provider without committing secrets:
+
+```text
+AI_PROVIDER=openai
+AI_MODEL=<your-configured-model>
+OPENAI_API_KEY=<your-local-key>
+```
+
+Unit tests use `MockLLMProvider`, so they do not require an API key or make network calls. The live provider is available through `OpenAIProvider` when the configuration is present.
+
 ## Requirements
 
 - Python 3.11 or newer
