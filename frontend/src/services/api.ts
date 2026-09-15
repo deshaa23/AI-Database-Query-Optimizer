@@ -1,6 +1,6 @@
 import type { AnalyzeRequest, AnalyzeResponse } from '../types/api'
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000').replace(/\/$/, '')
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '/api/v1').replace(/\/$/, '')
 
 export class ApiError extends Error {
   readonly status: number
@@ -27,7 +27,7 @@ function safeErrorMessage(status: number, payload: unknown): string {
 export async function analyzeQuery(request: AnalyzeRequest): Promise<AnalyzeResponse> {
   let response: Response
   try {
-    response = await fetch(`${API_BASE_URL}/api/v1/analyze`, {
+    response = await fetch(`${API_BASE_URL}/analyze`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request),
