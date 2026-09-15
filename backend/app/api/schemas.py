@@ -25,5 +25,6 @@ class AnalyzeResponse(BaseModel):
     observations: list[PlanObservation]
     deterministic_recommendations: list[OptimizationRecommendation]
     ai_analysis: OptimizationAnalysis | None = None
+    ai_note: str | None = None
     benchmark: BenchmarkResult | None = None
     benchmark_note: str | None = None

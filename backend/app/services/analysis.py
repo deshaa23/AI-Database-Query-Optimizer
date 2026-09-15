@@ -47,7 +47,13 @@ class AnalysisService:
         query: str,
         include_ai: bool,
         include_benchmark: bool,
-    ) -> tuple[ExplainResult, list[OptimizationRecommendation], OptimizationAnalysis | None, BenchmarkResult | None]:
+    ) -> tuple[
+        ExplainResult,
+        list[OptimizationRecommendation],
+        OptimizationAnalysis | None,
+        str | None,
+        BenchmarkResult | None,
+    ]:
         """Run the requested analysis stages in order."""
 
         try:
@@ -57,6 +63,7 @@ class AnalysisService:
             raise AnalysisError("Database analysis failed.") from exc
 
         ai_analysis = None
+        ai_note = None
         if include_ai:
             try:
                 ai_optimizer = self._ai_optimizer or AIOptimizer(
@@ -67,10 +74,11 @@ class AnalysisService:
                     explain_result=explain_result,
                     recommendations=recommendations,
                 )
-            except Exception as exc:
-                if isinstance(exc, AnalysisError):
-                    raise
-                raise AIAnalysisError("AI analysis is currently unavailable.") from exc
+            except Exception:
+                ai_note = (
+                    "AI reasoning is unavailable. Deterministic optimization analysis "
+                    "completed successfully."
+                )
 
         benchmark = None
         if include_benchmark:
@@ -89,4 +97,4 @@ class AnalysisService:
                 except BenchmarkError as exc:
                     raise BenchmarkAnalysisError("Benchmark execution failed.") from exc
 
-        return explain_result, recommendations, ai_analysis, benchmark
+        return explain_result, recommendations, ai_analysis, ai_note, benchmark

@@ -131,6 +131,7 @@ export interface AnalyzeResponse {
   observations: PlanObservation[]
   deterministic_recommendations: OptimizationRecommendation[]
   ai_analysis: OptimizationAnalysis | null
+  ai_note: string | null
   benchmark: BenchmarkResult | null
   benchmark_note: string | null
 }

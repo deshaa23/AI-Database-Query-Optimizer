@@ -3,10 +3,16 @@
 from fastapi.testclient import TestClient
 
 from app.ai.optimizer import AIOptimizer
-from app.ai.provider import MockLLMProvider
+from app.ai.provider import AIProviderError, MockLLMProvider
 from app.api.routes import analyze as analyze_route
 from app.main import app
-from app.optimizer.benchmark import BenchmarkError
+from app.core.config import Settings
+from app.optimizer.benchmark import (
+    BenchmarkComparison,
+    BenchmarkError,
+    BenchmarkMeasurement,
+    BenchmarkResult,
+)
 from app.optimizer.explain import validate_select_query
 from app.optimizer.models import ExplainResult, OptimizationRecommendation, PlanNode, PlanObservation
 from app.services.analysis import AnalysisError, AnalysisService, AIAnalysisError
@@ -72,6 +78,54 @@ class FakeBenchmarkService:
         return None
 
 
+class PopulatedBenchmarkService(FakeBenchmarkService):
+    def benchmark(self, query: str, candidate: OptimizationRecommendation) -> BenchmarkResult:
+        measurement = BenchmarkMeasurement(
+            execution_times_ms=[10.0, 12.0, 11.0],
+            median_execution_time_ms=11.0,
+            mean_execution_time_ms=11.0,
+            planning_times_ms=[0.2, 0.3, 0.2],
+            median_planning_time_ms=0.2,
+            node_type="Seq Scan",
+            relation_name="orders",
+            actual_rows=10.0,
+            planned_rows=10.0,
+            shared_hit_blocks=20,
+            shared_read_blocks=2,
+        )
+        after = measurement.model_copy(
+            update={
+                "execution_times_ms": [4.0, 5.0, 4.5],
+                "median_execution_time_ms": 4.5,
+                "mean_execution_time_ms": 4.5,
+                "node_type": "Index Scan",
+                "index_name": "queryforge_benchmark_idx_orders_user_id",
+                "shared_hit_blocks": 8,
+                "shared_read_blocks": 0,
+            }
+        )
+        return BenchmarkResult(
+            original_query=query,
+            candidate_type=candidate.type,
+            candidate_table="orders",
+            candidate_columns=["user_id"],
+            candidate_index_name="queryforge_benchmark_idx_orders_user_id",
+            repetitions=3,
+            warmup_runs=1,
+            baseline=measurement,
+            after=after,
+            comparison=BenchmarkComparison(
+                baseline_median_execution_time_ms=11.0,
+                after_median_execution_time_ms=4.5,
+                execution_time_delta_ms=-6.5,
+                improvement_percent=59.09,
+                classification="improved",
+                scan_type_changed=True,
+            ),
+            cleanup_completed=True,
+        )
+
+
 def _service(
     *,
     include_ai: bool = False,
@@ -130,7 +184,27 @@ def test_successful_select_analysis_is_structured_and_serializable() -> None:
     assert body["observations"]
     assert body["deterministic_recommendations"][0]["type"] == "MISSING_INDEX_CANDIDATE"
     assert body["ai_analysis"] is None
+    assert body["ai_note"] is None
     assert body["benchmark"] is None
+
+
+def test_benchmark_measurements_are_serialized_in_api_response() -> None:
+    response = _client(_service(benchmark_service=PopulatedBenchmarkService())).post(
+        "/api/v1/analyze",
+        json={
+            "query": "SELECT id FROM orders WHERE user_id = 4242",
+            "include_ai": False,
+            "include_benchmark": True,
+        },
+    )
+
+    assert response.status_code == 200
+    benchmark = response.json()["benchmark"]
+    assert benchmark["baseline"]["median_execution_time_ms"] == 11.0
+    assert benchmark["after"]["median_execution_time_ms"] == 4.5
+    assert benchmark["comparison"]["improvement_percent"] == 59.09
+    assert benchmark["comparison"]["classification"] == "improved"
+    assert benchmark["cleanup_completed"] is True
 
 
 def test_invalid_queries_return_400() -> None:
@@ -151,9 +225,13 @@ def test_empty_query_and_unknown_fields_are_rejected() -> None:
 def test_trailing_semicolon_is_accepted() -> None:
     response = _client(_service()).post(
         "/api/v1/analyze",
-        json={"query": "SELECT id FROM orders;", "include_ai": False},
+        json={"query": "  SELECT id FROM orders;  ", "include_ai": False},
     )
+
     assert response.status_code == 200
+    body = response.json()
+    assert body["query"] == "SELECT id FROM orders"
+    assert body["query"] == body["execution_plan"]["query"]
 
 
 def test_ai_is_used_only_when_requested() -> None:
@@ -165,8 +243,56 @@ def test_ai_is_used_only_when_requested() -> None:
     )
 
     assert no_ai_response.json()["ai_analysis"] is None
+    assert no_ai_response.json()["ai_note"] is None
     assert ai_response.status_code == 200
     assert ai_response.json()["ai_analysis"]["summary"] == "Grounded analysis."
+    assert ai_response.json()["ai_note"] is None
+
+
+def test_missing_ai_configuration_keeps_deterministic_analysis_successful() -> None:
+    service = AnalysisService(
+        explain_service=FakeExplainService(),
+        rule_engine=FakeRuleEngine(),
+        benchmark_service=FakeBenchmarkService(),
+        settings=Settings(ai_provider="", ai_model="", openai_api_key=""),
+    )
+
+    response = _client(service).post(
+        "/api/v1/analyze", json={"query": "SELECT 1", "include_ai": True}
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ai_analysis"] is None
+    assert body["ai_note"] == (
+        "AI reasoning is unavailable. Deterministic optimization analysis completed successfully."
+    )
+    assert body["deterministic_recommendations"]
+
+
+def test_ai_provider_failure_keeps_deterministic_analysis_successful() -> None:
+    class FailingProvider:
+        def generate_analysis(self, prompt: str) -> str:
+            raise AIProviderError("provider secret")
+
+    service = AnalysisService(
+        explain_service=FakeExplainService(),
+        rule_engine=FakeRuleEngine(),
+        ai_optimizer=AIOptimizer(FailingProvider()),
+        benchmark_service=FakeBenchmarkService(),
+    )
+
+    response = _client(service).post(
+        "/api/v1/analyze", json={"query": "SELECT 1", "include_ai": True}
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ai_analysis"] is None
+    assert body["ai_note"] == (
+        "AI reasoning is unavailable. Deterministic optimization analysis completed successfully."
+    )
+    assert "provider secret" not in response.text
 
 
 def test_benchmark_is_opt_in_and_called_only_when_requested() -> None:
@@ -206,5 +332,5 @@ def test_database_and_ai_failures_are_controlled() -> None:
     response = _client(FailingAIService()).post(
         "/api/v1/analyze", json={"query": "SELECT 1"}
     )
-    assert response.status_code == 503
+    assert response.status_code == 500
     assert "provider secret" not in response.text

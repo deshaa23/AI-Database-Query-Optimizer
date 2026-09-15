@@ -27,6 +27,10 @@ function mockSuccess() {
   vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify(response), { status: 200, headers: { 'Content-Type': 'application/json' } }))
 }
 
+function mockAiUnavailable() {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ ...response, ai_analysis: null, ai_note: 'AI reasoning is unavailable. Deterministic optimization analysis completed successfully.' }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+}
+
 test('shows the empty state and sample query', () => {
   render(<App />)
   expect(screen.getByText('Ready when you are.')).toBeInTheDocument()
@@ -65,4 +69,17 @@ test('copies suggested SQL and displays API errors', async () => {
   vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'))
   await user.click(screen.getByRole('button', { name: /Analyze query/ }))
   await waitFor(() => expect(screen.getByText('Could not connect to the QueryForge API.')).toBeInTheDocument())
+})
+
+test('renders deterministic analysis as completed when AI is unavailable', async () => {
+  const user = userEvent.setup()
+  mockAiUnavailable()
+  render(<App />)
+
+  await user.click(screen.getByRole('button', { name: /Analyze query/ }))
+
+  await waitFor(() => expect(screen.getByText('Analysis completed')).toBeInTheDocument())
+  expect(screen.getByText('AI reasoning is unavailable. Deterministic optimization analysis completed successfully.')).toBeInTheDocument()
+  expect(screen.queryByText('Analysis failed')).not.toBeInTheDocument()
+  expect(screen.getByText('Analysis overview')).toBeInTheDocument()
 })

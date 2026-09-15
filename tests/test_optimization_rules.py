@@ -59,8 +59,25 @@ def test_expensive_sequential_scan_is_reported_with_evidence() -> None:
 
     assert recommendation.type == "PERFORMANCE_BOTTLENECK"
     assert recommendation.affected_table == "orders"
-    assert "80.0" in recommendation.description
+    assert "actual total time of 80.000 ms per loop across 1 loops" in recommendation.description
+    assert "approximately 80.000 ms cumulative" in recommendation.description
     assert any("Actual rows" in evidence for evidence in recommendation.evidence)
+
+
+def test_bottleneck_wording_distinguishes_per_loop_and_cumulative_time() -> None:
+    plan = PlanNode(
+        node_type="Seq Scan",
+        relation="orders",
+        actual_total_time=14.548,
+        actual_rows=3,
+        actual_loops=3,
+    )
+
+    recommendation = OptimizationRuleEngine().recommend(_result(plan, 100.0))[0]
+
+    assert recommendation.type == "PERFORMANCE_BOTTLENECK"
+    assert "actual total time of 14.548 ms per loop across 3 loops" in recommendation.description
+    assert "approximately 43.644 ms cumulative" in recommendation.description
 
 
 def test_sort_with_unambiguous_table_and_key_produces_candidate() -> None:

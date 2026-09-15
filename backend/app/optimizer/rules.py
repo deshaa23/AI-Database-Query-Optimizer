@@ -101,7 +101,9 @@ class OptimizationRuleEngine:
                             title="Expensive sequential scan",
                             description=(
                                 f"The sequential scan on {node.relation or 'an unknown table'} "
-                                f"consumed {node_time:.2f} ms."
+                                f"had an actual total time of {node.actual_total_time:.3f} ms "
+                                f"per loop across {node.actual_loops:g} loops "
+                                f"(approximately {node_time:.3f} ms cumulative)."
                             ),
                             rationale="The scan accounts for a significant measured portion of execution time.",
                             evidence=[

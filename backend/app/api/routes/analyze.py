@@ -4,10 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.ai.provider import AIProviderError
 from app.api.schemas import AnalyzeRequest, AnalyzeResponse
 from app.services.analysis import (
-    AIAnalysisError,
     AnalysisError,
     AnalysisService,
     BenchmarkAnalysisError,
@@ -37,7 +35,6 @@ def get_analysis_service() -> AnalysisService:
         400: {"description": "Invalid or unsupported SQL query."},
         422: {"description": "Malformed request body."},
         500: {"description": "Database, benchmark, or unexpected analysis failure."},
-        503: {"description": "AI provider is unavailable or misconfigured."},
     },
 )
 def analyze_query(
@@ -47,15 +44,13 @@ def analyze_query(
     """Analyze one safe SELECT query through the existing optimizer services."""
 
     try:
-        explain_result, recommendations, ai_analysis, benchmark = service.analyze(
+        explain_result, recommendations, ai_analysis, ai_note, benchmark = service.analyze(
             query=request.query,
             include_ai=request.include_ai,
             include_benchmark=request.include_benchmark,
         )
     except InvalidQueryError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except (AIAnalysisError, AIProviderError) as exc:
-        raise HTTPException(status_code=503, detail="AI analysis is unavailable.") from exc
     except BenchmarkAnalysisError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except (AnalysisError, SQLAlchemyError) as exc:
@@ -69,6 +64,7 @@ def analyze_query(
         observations=explain_result.observations,
         deterministic_recommendations=recommendations,
         ai_analysis=ai_analysis,
+        ai_note=ai_note,
         benchmark=benchmark,
         benchmark_note=(
             "No supported deterministic benchmark candidate was available."
